@@ -292,7 +292,8 @@ class Monitor:
 
     def send_monitor_signal(self, tag):
         signal = b"continue" if tag == 1 else b"stop"
-        print("send monitor signal to devices")
+
+        print("send monitor signal {} to devices".format(tag))
         for request_address in self.ip_graph_requested:
             self.socket.send_multipart([request_address, signal])
 

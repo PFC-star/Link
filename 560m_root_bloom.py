@@ -18,7 +18,7 @@ monitor_port = "34567"  # set server port to receive monitor info
 TIMEOUT = 15  # Time to wait for new devices to connect to servers
 MODEL_EXIST_ON_DEVICE = True  # set True if the model exists on the mobile device, will skip model creation and transmission
 runtime_option = False  # set True if the load balance is runtime
-
+split_size = 2
 task = "Generation"
 root_dir = os.path.dirname(os.path.abspath(__file__))
 residual_connection_option = True
@@ -102,7 +102,7 @@ if __name__ == "__main__":
         to_send_path = retrieve_sending_dir(root_dir, requested_model, quantization_option=Quntization_Option,
                                             residual_connection=residual_connection_option)
 
-        if   os.path.isdir(to_send_path):
+        if  os.path.isdir(to_send_path):
             print('to_send dir exists')
             # Load the JSON string from the file
             with open(os.path.join(to_send_path, 'ip_module.json'), 'r') as file:
@@ -129,7 +129,7 @@ if __name__ == "__main__":
             # we can set "task_type" as "Classification" if it's needed.
             
             model_card = ModelCard(requested_model, quantization_option=Quntization_Option, task_type=task,
-                                   residual_connection=residual_connection_option, load_balancing_option=False,split_size=2)
+                                   residual_connection=residual_connection_option, load_balancing_option=False,split_size=split_size)
 
 
 
@@ -157,25 +157,27 @@ if __name__ == "__main__":
 
             num_devices = len(devices)
             monitor.is_monitor_ready.wait()
-            ping_latency, bandwidths, TotalMem, AvailMem, flop_speed = monitor.get_monitor_info()
-            
 
-            mem_threshold = .7  # set threshold for memory
-            TotalMem = [m * mem_threshold for m in TotalMem]
-            AvailMem = [m * mem_threshold for m in AvailMem]
-            print("-----------------Test Optimizer Function----------------------")
-            print("num_devices")
-            print(num_devices)
-            print("latency")
-            print(ping_latency)
-            print("bandwidth")
-            print(bandwidths)
-            print("totalMem")
-            print(TotalMem)
-            print("AvailMem")
-            print(AvailMem)
-            print("flop")
-            print(flop_speed)
+            # 参数
+            # ping_latency, bandwidths, TotalMem, AvailMem, flop_speed = monitor.get_monitor_info()
+            #
+            #
+            # mem_threshold = .7  # set threshold for memory
+            # TotalMem = [m * mem_threshold for m in TotalMem]
+            # AvailMem = [m * mem_threshold for m in AvailMem]
+            # print("-----------------Test Optimizer Function----------------------")
+            # print("num_devices")
+            # print(num_devices)
+            # print("latency")
+            # print(ping_latency)
+            # print("bandwidth")
+            # print(bandwidths)
+            # print("totalMem")
+            # print(TotalMem)
+            # print("AvailMem")
+            # print(AvailMem)
+            # print("flop")
+            # print(flop_speed)
 
             if model_card.split_size:
                 print("model_card.split_size: ", model_card.split_size)
@@ -210,7 +212,7 @@ if __name__ == "__main__":
             print("initial_module_arrangement")
             print(initial_module_arrangement)
 
-            # model_dirs = model_card.prepare_model_to_send(module_arrangement=initial_module_arrangement)
+            model_dirs = model_card.prepare_model_to_send(module_arrangement=initial_module_arrangement)
             device_module_order = model_card.device_module_arrangement  # [[0], [2], [1]]
             device_dir_map = {tuple(device_module_order[i]): model_dirs[i] for i in
                               range(len(model_dirs))}  # {(0): "..../model/.."}
@@ -277,6 +279,7 @@ if __name__ == "__main__":
     # 修改file_cfg json文件中的ip地址
     if not Quntization_Option:
         data = [
+
             [str(headerIP), "/workspace/ams-LinguaLinked-Inference/onnx_model__/to_send/bloom560m_unquantized_res/device0/module0/module.zip"],
             [str(workerIP), '/workspace/ams-LinguaLinked-Inference/onnx_model__/to_send/bloom560m_unquantized_res/device1/module1/module.zip']
         ]
@@ -303,7 +306,7 @@ if __name__ == "__main__":
 
     print(f'\ngraph: {ip_graph}')
     print(f"session index: {session}")
-    MODEL_EXIST_ON_DEVICE = True
+    MODEL_EXIST_ON_DEVICE = False
     config = {"file_path": file_cfg,
               "num_sample": b'1000',
               "num_device": len(devices),
