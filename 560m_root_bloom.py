@@ -18,7 +18,7 @@ monitor_port = "34567"  # set server port to receive monitor info
 TIMEOUT = 15  # Time to wait for new devices to connect to servers
 MODEL_EXIST_ON_DEVICE = True  # set True if the model exists on the mobile device, will skip model creation and transmission
 runtime_option = False  # set True if the load balance is runtime
-split_size = 2
+split_size = 5
 task = "Generation"
 root_dir = os.path.dirname(os.path.abspath(__file__))
 residual_connection_option = True
@@ -159,25 +159,25 @@ if __name__ == "__main__":
             monitor.is_monitor_ready.wait()
 
             # 参数
-            # ping_latency, bandwidths, TotalMem, AvailMem, flop_speed = monitor.get_monitor_info()
-            #
-            #
-            # mem_threshold = .7  # set threshold for memory
-            # TotalMem = [m * mem_threshold for m in TotalMem]
-            # AvailMem = [m * mem_threshold for m in AvailMem]
-            # print("-----------------Test Optimizer Function----------------------")
-            # print("num_devices")
-            # print(num_devices)
-            # print("latency")
-            # print(ping_latency)
-            # print("bandwidth")
-            # print(bandwidths)
-            # print("totalMem")
-            # print(TotalMem)
-            # print("AvailMem")
-            # print(AvailMem)
-            # print("flop")
-            # print(flop_speed)
+            ping_latency, bandwidths, TotalMem, AvailMem, flop_speed = monitor.get_monitor_info()
+
+
+            mem_threshold = .7  # set threshold for memory
+            TotalMem = [m * mem_threshold for m in TotalMem]
+            AvailMem = [m * mem_threshold for m in AvailMem]
+            print("-----------------Test Optimizer Function----------------------")
+            print("num_devices")
+            print(num_devices)
+            print("latency")
+            print(ping_latency)
+            print("bandwidth")
+            print(bandwidths)
+            print("totalMem")
+            print(TotalMem)
+            print("AvailMem")
+            print(AvailMem)
+            print("flop")
+            print(flop_speed)
 
             if model_card.split_size:
                 print("model_card.split_size: ", model_card.split_size)
@@ -207,7 +207,7 @@ if __name__ == "__main__":
                     start = end
                 return np.array(arrangement)
 
-            initial_module_arrangement = round_robin_module_arrangement(2, 2)
+            initial_module_arrangement = round_robin_module_arrangement(split_size, split_size)
             overlapping_module_arrangement = initial_module_arrangement  # Assuming no dynamic arrangement needed
             print("initial_module_arrangement")
             print(initial_module_arrangement)
@@ -270,29 +270,25 @@ if __name__ == "__main__":
     print("------file_cfg--------")
     print(file_cfg)
 
-    for i in devices:
-        if i["role"]== "header":
-            headerIP=i["ip"]
-        if i["role"] == "worker":
-            workerIP = i["ip"]
 
     # 修改file_cfg json文件中的ip地址
-    if not Quntization_Option:
-        data = [
+    pathLists = []
+    for index ,i in enumerate(devices):
+        ip = i["ip"]
+        role = i['role']
 
-            [str(headerIP), "/workspace/ams-LinguaLinked-Inference/onnx_model__/to_send/bloom560m_unquantized_res/device0/module0/module.zip"],
-            [str(workerIP), '/workspace/ams-LinguaLinked-Inference/onnx_model__/to_send/bloom560m_unquantized_res/device1/module1/module.zip']
-        ]
-    else:
-        data = [
-            [str(headerIP),
-             "/workspace/ams-LinguaLinked-Inference/onnx_model__/to_send/bloom560m_quantized_int8_res/device0/module0/module.zip"],
-            [str(workerIP),
-             '/workspace/ams-LinguaLinked-Inference/onnx_model__/to_send/bloom560m_quantized_int8_res/device1/module1/module.zip']
-        ]
+        if not Quntization_Option:
+            pathList = [str(ip), "/workspace/ams-LinguaLinked-Inference/onnx_model__/to_send/bloom560m_unquantized_res/device{}/module{}/module.zip".format(index,index)]
+
+        else:
+              pathList = [str(ip),
+                    "/workspace/ams-LinguaLinked-Inference/onnx_model__/to_send/bloom560m_quantized_int8_res/device{}/module{}/module.zip".format(
+                        index, index)]
+        pathLists.append(pathList)
+
     with open(os.path.join(to_send_path, 'ip_module.json'), 'w') as file:
 
-        json.dump(data, file)
+        json.dump(pathLists, file)
 
     with open(os.path.join(to_send_path, 'ip_module.json'), 'r') as file:
         ip_module_json = file.read()

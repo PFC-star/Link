@@ -229,13 +229,13 @@ class ModelCard:
         # split model based on max number model split available
         # split_size = max_split_size(model, transformer_model_option=self.transformer_model_option)
         # add by ams
-        split_size = 2
-        self.split_size = split_size
+
+
         sequential_dependency_map = None
         residual_dependency_map = None
         if self.residual_connection:
             modules, sequential_dependency_map, residual_dependency_map, checked_split_size = model_sharding(model,
-                                                                                                             split_size,
+                                                                                                             self.split_size,
                                                                                                              transformer_model_option=self.transformer_model_option,
                                                                                                              residual_connection=self.residual_connection,
                                                                                                              debug_mod=False,

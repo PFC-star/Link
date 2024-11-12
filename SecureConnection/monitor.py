@@ -134,7 +134,7 @@ class Monitor:
         print("monitor start listening")
         print(f"device set size: {self.root_device_len}")
         while continue_listening:
-            if self.socket.poll(1000):
+            if self.socket.poll(20000):
                 print("monitor start listening")
                 identifier, action, msg_content = self.socket.recv_multipart()
                 # print(f"monitor identifier: {identifier.hex()}")
@@ -144,7 +144,7 @@ class Monitor:
                 print("\n-----------------------------------\n")
 
                 if action.decode() == "MonitorIP":
-                    print("monitor waiting for all device to be connected...")
+                    print("In MonitorIP  monitor waiting for all device to be connected...")
                     self.ip_graph_requested.append(identifier)
                     jsonObject = json.loads(msg_content.decode())
                     ip = jsonObject.get("ip")
@@ -155,7 +155,7 @@ class Monitor:
                     #     self.devices.appendleft({"ip": ip, "role": role})
                     # else:
                     #     self.devices.append({"ip": ip, "role": role})
-                # last_received_time = time.time()
+                last_received_time = time.time()
             else:
                 raise RuntimeError("No message received. Check the device connection.")
 
