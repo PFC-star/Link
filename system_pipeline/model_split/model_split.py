@@ -11,7 +11,7 @@ from torch.fx import GraphModule
 import transformers
 
 class ModelSplit:
-    def __init__(self, m: nn.Module, debug_mod: bool = False, model_allocation=[], split_option="fixed"):
+    def __init__(self, m: nn.Module, debug_mod: bool = False, model_allocation=[], split_option="ratio"):
         self.mod = m
         self.mod_mapping = {}
         self.subgraph_dependency_bool = True
@@ -37,6 +37,7 @@ class ModelSplit:
         # find call_module nodes
         call_module_idx = [node_list.index(i) for i in node_list if i.op == "call_module"]
 
+        # transformer_module_idx = [node_list.index(i) for i in node_list if i.op == "call_module"]
 
         # if the second last node's op is call_module, we update it's node idx in call_module_idx by 1.
         if node_list[call_module_idx[-1] + 1].op == "output":
@@ -496,6 +497,41 @@ class ModelSplit:
                     start = end  # move the start index to the end of the current sublist
 
                 return sublists
+        elif split_option=="ratio":
+            if len(list_in) <= split_size:
+                raise Exception("split_size must smaller than the number of layers. "
+                                "Double check the split_size value and the number layers in the model.")
+            else:
+                # model_split = [0.67627924 ,0.72070909 ,0.78456432 ,0.8184473]
+
+                model_split = [ 0.38115006,0.61884994]
+
+
+
+
+                sum_ = sum(model_split)
+                ratio = [i / sum_ for i in model_split]
+                sublist_size = [int(len(list_in) * i) for i in ratio]
+
+
+                remainder = len(list_in) -sum(sublist_size)   # get any remaining elements after splitting into sublists
+
+                sublists = []
+                start = 0
+
+                for i in sublist_size:
+                    end = start + i
+
+                    if remainder > 0:  # if there are remaining elements, add one to the sublist size
+                        end += 1
+                        remainder -= 1
+                    if sublists == []:
+                        sublists.append(list_in[start:end])
+                    else:
+                        sublists.append(list_in[start - 1:end])
+                    start = end  # move the start index to the end of the current sublist
+
+                return sublists
 
     def get_subgraphs(self, split_size: int, remote_option: bool = True) -> list:
         """
@@ -504,7 +540,9 @@ class ModelSplit:
         """
         if remote_option:
             gm: torch.fx.GraphModule = torch.fx.symbolic_trace(self.mod)
+
             subgraphs = self.graph_module_split(gm, split_size)
+
             for g in subgraphs:
                 # test graph
                 g.lint()
@@ -528,6 +566,35 @@ class ModelSplit:
 
         if transformer_model_option:
             gm = transformers.utils.fx.symbolic_trace(self.mod)
+
+
+            #
+
+            # for node in gm.graph.nodes:
+            #     print(f"Node: {node.name}, Target: {node.target}")
+            #
+            #     # 检查节点是否与线性层或卷积层相关
+            #     if isinstance(node.target, str) and hasattr(self.mod, node.target):
+            #         # 获取对应的权重张量
+            #         module = getattr(self.mod, node.target)
+            #
+            #         # 检查该模块是否具有权重
+            #         if hasattr(module, 'weight'):
+            #             weight_tensor = module.weight
+            #             weight_size = weight_tensor.numel() * weight_tensor.element_size()
+            #             weight_size_gb = weight_size / (1024 ** 3)  # 转换为 GB
+            #             print(f"Weight size for {node.target}: {weight_size_gb:.6f} GB")
+            #
+            #         # 检查该模块是否具有偏置
+            #         if hasattr(module, 'bias') and module.bias is not None:
+            #             bias_tensor = module.bias
+            #             bias_size = bias_tensor.numel() * bias_tensor.element_size()
+            #             bias_size_gb = bias_size / (1024 ** 3)  # 转换为 GB
+            #             print(f"Bias size for {node.target}: {bias_size_gb:.6f} GB")
+
+            #
+
+
             subgraphs = self.graph_module_split(gm, split_size)
             if residual_connection:
                 subgraphs, sequential_dependency_map, residual_dependency_map = self._create_multiple_return_residual(
@@ -697,6 +764,13 @@ class ModelSplit:
                         alloc_start = alloc_list[0]
                         alloc_end = alloc_list[0]
                     result_index.append([temp_alloc[alloc_start][0], temp_alloc[alloc_end][-1]])
+            elif split_option == "ratio":
+                index_pair = [index for key, index in subgraph_node_map.items()]
+                index_list = self._split_list(index_pair, split_size, split_option)
+                for list_idx in range(len(index_list)):
+                    if list_idx > 0:
+                        index_list[list_idx].pop(0)
+                    result_index.append([index_list[list_idx][0][0], index_list[list_idx][-1][1]])
 
         return result_index
 

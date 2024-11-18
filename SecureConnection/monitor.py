@@ -182,7 +182,7 @@ class Monitor:
         try:
             monitor_ready_set = set()
             while self.receive_monitor:
-                if self.socket.poll(1000):
+                if self.socket.poll(100000):
                     print("monitor start receiving results from edges")
                     identifier , action, msg_content = self.socket.recv_multipart()
                     print("monitor information received")

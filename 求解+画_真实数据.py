@@ -1,30 +1,26 @@
 import numpy as np
 import random
 import matplotlib.pyplot as plt
-
+from tabulate import tabulate
 # 定义ping延迟和带宽数组
-ping_latency = np.array([[float("inf"), 91.865 / 1000, 89.33 / 1000, 91.865 / 1000, 91.865 / 1000, 89.33 / 1000, 91.865 / 1000, 89.33 / 1000, 91.865 / 1000, 91.865 / 1000],
-                         [89.33 / 1000, float("inf"), 89.33 / 1000, 91.865 / 1000, 91.865 / 1000, 89.33 / 1000, 91.865 / 1000, 89.33 / 1000, 91.865 / 1000, 91.865 / 1000],
-                         [89.33 / 1000, 91.865 / 1000, float("inf"), 91.865 / 1000, 91.865 / 1000, 89.33 / 1000, 91.865 / 1000, 89.33 / 1000, 91.865 / 1000, 91.865 / 1000],
-                         [89.33 / 1000, 91.865 / 1000, 91.865 / 1000, float("inf"), 91.865 / 1000, 89.33 / 1000, 91.865 / 1000, 89.33 / 1000, 91.865 / 1000, 91.865 / 1000],
-                         [91.865 / 1000, 89.33 / 1000, 91.865 / 1000, 91.865 / 1000, float("inf"), 89.33 / 1000, 91.865 / 1000, 89.33 / 1000, 91.865 / 1000, 91.865 / 1000],
-                         [89.33 / 1000, 89.33 / 1000, 91.865 / 1000, 91.865 / 1000, 89.33 / 1000, float("inf"), 91.865 / 1000, 89.33 / 1000, 91.865 / 1000, 91.865 / 1000],
-                         [89.33 / 1000, 91.865 / 1000, 91.865 / 1000, 91.865 / 1000, 89.33 / 1000, 91.865 / 1000, float("inf"), 89.33 / 1000, 91.865 / 1000, 91.865 / 1000],
-                         [89.33 / 1000, 91.865 / 1000, 91.865 / 1000, 91.865 / 1000, 89.33 / 1000, 91.865 / 1000, 89.33 / 1000, float("inf"), 91.865 / 1000, 91.865 / 1000],
-                         [91.865 / 1000, 89.33 / 1000, 91.865 / 1000, 91.865 / 1000, 89.33 / 1000, 91.865 / 1000, 89.33 / 1000, 91.865 / 1000, float("inf"), 91.865 / 1000],
-                         [89.33 / 1000, 89.33 / 1000, 91.865 / 1000, 91.865 / 1000, 89.33 / 1000, 91.865 / 1000, 89.33 / 1000, 91.865 / 1000, 91.865 / 1000, float("inf")]])
+# 单位 秒 s
 
-bandwidths = np.array([[float("inf"), 12.1227, 10.023, 8.993, 13.48, 12.1227, 10.023, 8.993, 10.023, 8.993],
-                       [13.48, float("inf"), 10.023, 8.993, 13.48, 12.1227, 10.023, 8.993, 10.023, 8.993],
-                       [12.1227, 10.023, float("inf"), 8.993, 13.48, 12.1227, 10.023, 8.993, 10.023, 8.993],
-                       [13.48, 10.023, 8.993, float("inf"), 13.48, 12.1227, 10.023, 8.993, 10.023, 8.993],
-                       [12.1227, 10.023, 8.993, 13.48, float("inf"), 12.1227, 10.023, 8.993, 10.023, 8.993],
-                       [13.48, 10.023, 8.993, 13.48, 12.1227, float("inf"), 10.023, 8.993, 10.023, 8.993],
-                       [12.1227, 10.023, 8.993, 13.48, 12.1227, 10.023, float("inf"), 8.993, 10.023, 8.993],
-                       [13.48, 10.023, 8.993, 13.48, 12.1227, 10.023, 8.993, float("inf"), 10.023, 8.993],
-                       [13.48, 10.023, 8.993, 13.48, 12.1227, 10.023, 8.993, 10.023, float("inf"), 8.993],
-                       [12.1227, 10.023, 8.993, 13.48, 12.1227, 10.023, 8.993, 10.023, 8.993, float("inf")]])
+ping_latency = np.array([
+                        [0	,0.034866,0.017796	,0.076512,	0.030985],
+                        [0.03257,	0,	0.027257	,0.079517,	0.018823],
+                        [0.108798	,0.065485	,0,	0.064679	,0.043849],
+                        [0.206233	,0.028255	,0.034938	,0,	0.02909],
+                        [0.021318	,0.034842	,0.019245,	0.042098,	0]])
 
+# MB ps
+
+
+bandwidths = np.array([
+                        [float("inf")	,1.666069031,	1.81388855	,2.56729126	,4.906654358],
+                        [0.312805176	,float("inf")	,1.200675964	,0.575065613,	0.590324402],
+                        [0.994682312,	2.725601196	,float("inf")	,0.332832336,	0.495910645],
+                        [0.772476196,	1.02519989	,1.168251038,	float("inf")	,1.210212708],
+                        [2.743721008,	1.764297485	,1.543045044,	3.170013428,	float("inf")]])
 # 定义通信数据大小
 data_size_kb = 20  # 20 KB = 160 千比特
 
@@ -36,13 +32,15 @@ def inference_time(M):
     return 0.15 * M ** 0.73
 
 # 定义总模型大小和设备数量
-M_total = 1  # 设备3上的完整模型大小
-n = 5  # n个设备
+M_total = 1 # 设备3上的完整模型大小
+n = 2  # n个设备
 # 计算设备之间的通信时间
 def communication_time(i, j, data_size_kb=20):
-    data_size_kilobits = data_size_kb * 8  # 转换为千比特
-    return (ping_latency[i, j] + (data_size_kilobits / bandwidths[i, j]))/100
+    data_size_kilobits = data_size_kb/ 1024 # 转换为MB
+    return (ping_latency[i, j] + (data_size_kilobits / bandwidths[i, j]))
 # Simulated annealing function
+
+
 def simulated_annealing(M_total, n, iterations=5000, initial_temp=100, cooling_rate=0.99):
     # Initialize model allocation randomly
     Mi = np.sort(np.random.dirichlet(np.ones(n), size=1)[0] * M_total)
@@ -97,7 +95,8 @@ def calc_total_time(Mi):
     for i in range(1, n):
         load_start = 0
         load_end = load_time(Mi[i])
-        infer_start = max(stages[i - 1]['comm_end'], load_end)
+        infer_start = max(stages[i - 1]['comm_end'], load_end) # 上一轮通信结束或者本轮load结束之后才可以开启推理
+
         infer_end = infer_start + inference_time(Mi[i])
         comm_start = infer_end
         comm_end = comm_start + communication_time(i, (i + 1) % n)  # Circular communication between devices
@@ -113,25 +112,49 @@ def calc_total_time(Mi):
 
     # Return the maximum total time, representing the total recovery time
     return max(total_times), stages
-def print_stage_info(stages):
-    print(f"{'设备':<5}{'加载开始 (s)':<15}{'加载结束 (s)':<15}{'推理开始 (s)':<15}{'推理结束 (s)':<15}{'通信开始 (s)':<15}{'通信结束 (s)':<15}")
-    for i, stage in enumerate(stages):
-        print(f"{i:<5}{stage['load_start']:<15.2f}{stage['load_end']:<15.2f}{stage['infer_start']:<15.2f}{stage['infer_end']:<15.2f}{stage['comm_start']:<15.2f}{stage['comm_end']:<15.2f}")
 
-def plot_pipeline(stages):
-    fig, ax = plt.subplots(figsize=(10, n))
+
+def print_stage_info(stages):
+    # 创建数据表格
+    table = []
+    headers = ['设备', '加载开始 (s)', '加载结束 (s)', '推理开始 (s)', '推理结束 (s)', '通信开始 (s)', '通信结束 (s)']
+
+    # 填充数据
+    for i, stage in enumerate(stages):
+        row = [
+            i,
+            stage['load_start'],
+            stage['load_end'],
+            stage['infer_start'],
+            stage['infer_end'],
+            stage['comm_start'],
+            stage['comm_end']
+        ]
+        table.append(row)
+
+    # 使用 tabulate 格式化输出表格
+    print(tabulate(table, headers=headers, floatfmt=".2f", tablefmt="grid"))
+
+
+def plot_pipeline(stages,last_time,recovery_time_single_device):
+    fig, ax = plt.subplots(figsize=(10, n+1))
 
     for i, stage in enumerate(stages):
         # 加载阶段
         ax.broken_barh([(stage['load_start'], stage['load_end'] - stage['load_start'])], (i - 0.4, 0.8),
-                       facecolors='tab:blue', label="laod" if i == 0 else "")
+                       facecolors='tab:blue', label="load" if i == 0 else "")
         # 推理阶段
         ax.broken_barh([(stage['infer_start'], stage['infer_end'] - stage['infer_start'])], (i - 0.4, 0.8),
                        facecolors='tab:green', label="infer" if i == 0 else "")
         # 通信阶段
         ax.broken_barh([(stage['comm_start'], stage['comm_end'] - stage['comm_start'])], (i - 0.4, 0.8),
                        facecolors='tab:red', label="commu" if i == 0 else "")
-
+    # 加载阶段
+    ax.broken_barh([(stage['comm_end'],last_time)], (i - 0.4, 0.8),
+                   facecolors='tab:blue', label="load remain" if i == 0 else "")
+    # 单设备恢复
+    ax.broken_barh([(0, recovery_time_single_device)], (i +1 - 0.4, 0.8),
+                   facecolors='tab:grey', label="single device" if i == 0 else "")
     ax.set_xlabel('time (s)')
     ax.set_ylabel('device')
     ax.set_yticks(range(n))
@@ -142,12 +165,17 @@ def plot_pipeline(stages):
 
 
 # 运行优化并记录时间
-best_Mi, best_time, stages = simulated_annealing(1, 10)
+best_Mi, best_time, stages = simulated_annealing(M_total, n)
 print(f"最佳子模型分配: {best_Mi}")
+last_M = M_total - best_Mi[-1]
+last_time = load_time(last_M)
+recovery_time_single_device = load_time(M_total)
 print(f"最小无感恢复时间: {best_time:.2f} 秒")
+print(f"最小无感恢复时间: {best_time+last_time:.2f} 秒")
+print(f"单设备恢复时间: {recovery_time_single_device:.2f} 秒")
 
 # 打印每个设备的时间段信息
 print_stage_info(stages)
 
 # 画出流水线图
-plot_pipeline(stages)
+plot_pipeline(stages,last_time,recovery_time_single_device)
