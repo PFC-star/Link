@@ -1,14 +1,6 @@
-import time
-
 import numpy as np
 import random
-import matplotlib.pyplot as plt
-from tabulate import tabulate
-# import ace_tools as tools
 import pandas as pd
-import os
-# 定义ping延迟和带宽数组
-# 单位 秒 s
 
 ping_latency_total = [
                         [0	,0.034866,0.017796	,0.076512,	0.030985],
@@ -35,7 +27,6 @@ available_memory_total = [2146.2, 0.4*7867.299999999999, 1964.1999999999998,2522
 
 
 
-flops_spped_total= np.array([17128238928,52008456659,22955103793,34432655689,18917814128])
 
 load_time_param = np.array([(3.5830231,0.99784825),
                             (0.95286353,1.07230762),
@@ -51,50 +42,80 @@ model_name = "bloom7b1"
 flop = model_dict[model_name]["FLOPs"]
 memory = model_dict[model_name]["memory"]
 param = model_dict[model_name]["param"]
+# 定义手机的性能flops (单位：FLOPS)
+flops_speed_total = np.array([17128238928, 52008456659, 22955103793, 34432655689, 18917814128])
 
+# 模型总参数量（单位：B），比如3B大模型（3B = 3*10^9参数）
+model_total_parameters =param # 3B参数模型
+token_count = 10000  # 假设推理过程中的token数量
 
-# initial_module_arrangement=[
-#                              [1 ,1 ,1 ,1, 1, 1 ,1 ,1, 1, 1 ,1 ,1 ,1 ,1 ,1 ,1, 1 ,1 ,1 ,1 ,1 ,0 ,0 ,0, 1],
-#                             [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,1, 1 ,1, 0 ]]
-
-#
-# initial_module_arrangement=[
-#                              [1 ,1 ,1 ,1, 1, 1 ,1 ,1, 1, 1 ,1 ,1 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0 ,0 ,0, 0],
-#                             [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,1 ,1 ,1,1, 1 ,1 ,1 ,1 ,1 ,1, 1 ,1, 1 ]]
-
-
-
-
-
-
+# 定义平台抽成比例
+platform_cut = 0.05  # 5%
 
 
 # 定义通信数据大小
 data_size_kb = 20  # 20 KB = 160 千比特
 
+initial_module_arrangement=[ [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ],
+                             [1 ,0 ,0 ,0, 0, 0 ,1 ,1, 1, 0 ,0 ,0 ,0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0 ,0 ,0],
+                             [0 ,1 ,1 ,1 ,1 ,1, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ],
+                             [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,1 ,1, 1 ,1 ,1 ,1 ,1, 1 ,1 ,1 ,1 ,1 ,1, 1 ,1, 0 ],
+                             [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 1 ]]
+
+param_dict_1 = {"selected_device_index":[0,3],
+              "selected_single_device_index":0,
+              "initial_device_index":2,
+              "faulty_device":1}
+param_dict_2 = {"selected_device_index":[3,4],
+              "selected_single_device_index":0,
+              "initial_device_index":2,
+              "faulty_device":1}
+param_dict_3 = {"selected_device_index":[0,4],
+              "selected_single_device_index":0,
+              "initial_device_index":2,
+              "faulty_device":1}
+
+param_dict_4 = {"selected_device_index":[0,3,4],
+              "selected_single_device_index":0,
+              "initial_device_index":1,
+              "faulty_device":1}
+param_dict_5 = {"selected_device_index":[0,3],
+              "selected_single_device_index":0,
+              "initial_device_index":1,
+              "faulty_device":2}
+param_dict_6 = {"selected_device_index":[3,4],
+              "selected_single_device_index":0,
+              "initial_device_index":1,
+              "faulty_device":2}
+param_dict_7 = {"selected_device_index":[0,4],
+              "selected_single_device_index":0,
+              "initial_device_index":1,
+              "faulty_device":2}
+
+
+param_dict_8 = {"selected_device_index":[0,3,4],
+              "selected_single_device_index":0,
+              "initial_device_index":1,
+              "faulty_device":2}
+param_list = [param_dict_1,param_dict_2,param_dict_3,param_dict_4,param_dict_5,param_dict_6,param_dict_7,param_dict_8]
+
+param_allocation = [ sum(i)/len(i)* param for i in initial_module_arrangement]
+FLOPs_allocation = [ sum(i)/len(i)* flop for i in initial_module_arrangement]
+
+
+results_out = []
 # 定义加载时间和推理时间的函数
 def load_time(M, device):
     param_ = load_time_param[device]
     a = param_[0]
     b = param_[1]
     return max(a* M ** b,0.5)
-# increment = 0.1
-# numbers = [i * increment for i in range(0, 30)]
-# for i in numbers:
-#     print(load_time(i,4))
-# def load_time(M):
-#     return 5.57 * M ** 0.44
-# def inference_time(M):
-#     return 0.15 * M ** 0.73
 
 def inference_time(m,device):
     flop = m/M_total* FLOPs_allocation[faulty_device]
     inference_time_ = flop / flops_spped_total[device]
     # print("inference_time_:",inference_time_)
     return inference_time_
-# 加入Memory_spped
-
-
 
 # 计算设备之间的通信时间
 def communication_time(i, j, data_size_kb=20):
@@ -294,163 +315,187 @@ def last_load(best_Mi,stages):
     min_recovery_time = max(recovery_time_lst)
     return min_recovery_time,selected_device_index[min_index], last_load_time_lst[min_index]
 
-
-
-# 参数
-
-
 #
-# initial_module_arrangement=[ [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ],
-#                              [1 ,1 ,1 ,1, 1, 1 ,1 ,1, 1, 1 ,1 ,1 ,1 ,1 ,1 ,1, 1 ,1 ,1 ,1 ,1 ,0 ,0 ,0, 1],
-#                             [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,1, 1 ,1, 0 ],
-#                              [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ],
-#                              [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ]]
+# for param_dict in param_list:
+#     results = []
+#     results_plot = []
+#     recovery_time_single_device_lst = []
+#     selected_device_index = param_dict["selected_device_index"]
+#     selected_single_device_index = param_dict["selected_single_device_index"]
+#     initial_device_index = param_dict["initial_device_index"]
+#     faulty_device = param_dict["faulty_device"]
+#     print("selected_device_index:",selected_device_index)
+#     print("selected_single_device_index:",selected_single_device_index)
+#     print("initial_device_index:",initial_device_index)
+#     print("faulty_device:",faulty_device)
+#
+#     # M_total = param_allocation[faulty_device]
+#     # M_total = sum(param_allocation)
+#     M_total = param_allocation[4]
+#
+#     print("\ndevice_allocation:", param_allocation)
+#     print("faulty_device:", faulty_device)
+#     print("M_total:", M_total)
+#
+#     # ping_latency =np.array(   [ping_latency_total[i].tolist() for i in selected_device_index])
+#
+#     # # bandwidths =np.array( [bandwidths_total[i].tolist()  for i in selected_device_index])
+#     # tatal_memory = np.array( [tatal_memory_total[i]   for i in selected_device_index])
+#     # available_memory =  [available_memory_total[i]   for i in selected_device_index]
+#     # flops_spped =  [flops_spped_total[i]  for i in selected_device_index]
+#     device_lst = ["device" + str(i) for i in selected_device_index]
+#     print("device_lst:", device_lst)
+#
+#     # 定义总模型大小和设备数量
+#     # M_total = 1 # 设备3上的完整模型大小
+#     n = len(selected_device_index)  # n个设备
+#
+#     recovery_time_single_device(selected_device_index)
+#
+#     # 运行优化并记录时间
+#
+#     # 多手机最优恢复（Ours)
+#     best_Mi, best_time, stages = simulated_annealing(M_total, n)
+#
+#     min_recovery_time, min_index, last_load_time = last_load(best_Mi, stages)
+#     last_load_time_tuple = (min_index, last_load_time)
+#     print("last_load_time:",last_load_time)
+#     # print(f"最佳子模型分配: {best_Mi}")
+#     # print(f"最小无感恢复时间: {best_time:.2f} 秒")
+#     # print(f"最完全恢复时间: {min_recovery_time:.2f} 秒")
+#     results_out.append([best_Mi, best_time, min_recovery_time, min_index])
+#     results_plot.append([stages, last_load_time_tuple, recovery_time_single_device_lst])
+#     # # 打印每个设备的时间段信息
+#     # print_stage_info(stages)
+#
+#     # 多手机随机恢复
+#     # 均分
+#
+#     for i in range(30):
+#         best_Mi, best_time, stages = simulated_annealing_random(M_total, n)
+#         min_recovery_time, min_index, last_load_time = last_load(best_Mi, stages)
+#         last_load_time_tuple = (min_index, last_load_time)
+#         # 记录结果
+#
+#         results_plot.append([stages, last_load_time_tuple, recovery_time_single_device_lst])
+#         results.append([best_Mi, best_time, min_recovery_time])
+#
+#     # 画出流水线图
+#     plot_pipeline(results_plot)
+#
+#     # 转换为 DataFrame
+#     df_results = pd.DataFrame(results, columns=["子模型分配", "无感恢复时间 (秒)", "完全恢复时间 (秒)"])
+#     # 计算均值并添加到表格
+#     mean_times = df_results[["无感恢复时间 (秒)", "完全恢复时间 (秒)"]].mean()
+#     mean_times["子模型分配"] = "均值"
+#     df_results = pd.concat([df_results, pd.DataFrame([mean_times], columns=df_results.columns)], ignore_index=True)
+#     # tools.display_dataframe_to_user(name="模拟退火结果", dataframe=df_results)
+#     # print(df_results)
+#     # print(f"最佳子模型分配: {best_Mi}")
+#     # print(f"无感恢复时间: {df_results['无感恢复时间 (秒)'].iloc[-1]:.2f} 秒")
+#     # print(f"完全恢复时间: {df_results['完全恢复时间 (秒)'].iloc[-1]:.2f} 秒")
+#     recovery_time_single_device([0])
+#     break
+#
+#     results_out.append(
+#         [[], df_results['无感恢复时间 (秒)'].iloc[-1], df_results['完全恢复时间 (秒)'].iloc[-1], min_index])
+#
+#     df_results_out = pd.DataFrame(results_out,
+#                                   columns=["子模型分配", "无感恢复时间 (秒)", "完全恢复时间 (秒)", "二次加载选择设备"])
+# print(df_results_out)
+#
+#
+# # Output to an Excel file
+# os.makedirs( "results",exist_ok=True)
+# excel_file_path = 'results/df_results_out_transposed.csv'
+# df_results_out.T.to_csv(excel_file_path, header=False)
 
 
-initial_module_arrangement=[ [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ],
-                             [1 ,0 ,0 ,0, 0, 0 ,1 ,1, 1, 0 ,0 ,0 ,0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0 ,0 ,0],
-                             [0 ,1 ,1 ,1 ,1 ,1, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ],
-                             [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,1 ,1, 1 ,1 ,1 ,1 ,1, 1 ,1 ,1 ,1 ,1 ,1, 1 ,1, 0 ],
-                             [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 1 ]]
+# 手机类
+class Phone:
+    def __init__(self, id, flops, model_allocation):
+        self.id = id  # 手机ID
+        self.flops = flops  # 手机性能
+        self.model_allocation = model_allocation  # 每部手机分配的模型参数量
+        self.points_earned = 0  # 每部手机获取的积分
 
-param_dict_1 = {"selected_device_index":[0,3],
-              "selected_single_device_index":0,
-              "initial_device_index":2,
-              "faulty_device":1}
-param_dict_2 = {"selected_device_index":[3,4],
-              "selected_single_device_index":0,
-              "initial_device_index":2,
-              "faulty_device":1}
-param_dict_3 = {"selected_device_index":[0,4],
-              "selected_single_device_index":0,
-              "initial_device_index":2,
-              "faulty_device":1}
-
-param_dict_4 = {"selected_device_index":[0,3,4],
-              "selected_single_device_index":0,
-              "initial_device_index":1,
-              "faulty_device":1}
-param_dict_5 = {"selected_device_index":[0,3],
-              "selected_single_device_index":0,
-              "initial_device_index":1,
-              "faulty_device":2}
-param_dict_6 = {"selected_device_index":[3,4],
-              "selected_single_device_index":0,
-              "initial_device_index":1,
-              "faulty_device":2}
-param_dict_7 = {"selected_device_index":[0,4],
-              "selected_single_device_index":0,
-              "initial_device_index":1,
-              "faulty_device":2}
+    def calculate_points(self):
+        # 根据分配的模型参数量来计算积分
+        return self.model_allocation   * token_count
 
 
-param_dict_8 = {"selected_device_index":[0,3,4],
-              "selected_single_device_index":0,
-              "initial_device_index":1,
-              "faulty_device":2}
-param_list = [param_dict_1,param_dict_2,param_dict_3,param_dict_4,param_dict_5,param_dict_6,param_dict_7,param_dict_8]
+# 用户类
+class User:
+    def __init__(self, id, initial_points):
+        self.id = id  # 用户ID
+        self.points = initial_points  # 初始积分
+        self.phones = []  # 用户拥有的手机列表
 
-param_allocation = [ sum(i)/len(i)* param for i in initial_module_arrangement]
-FLOPs_allocation = [ sum(i)/len(i)* flop for i in initial_module_arrangement]
-
-
-results_out = []
-
-for param_dict in param_list:
-
-    results = []
-    results_plot = []
-    recovery_time_single_device_lst = []
-    selected_device_index = param_dict["selected_device_index"]
-    selected_single_device_index = param_dict["selected_single_device_index"]
-    initial_device_index = param_dict["initial_device_index"]
-    faulty_device = param_dict["faulty_device"]
-    print("selected_device_index:",selected_device_index)
-    print("selected_single_device_index:",selected_single_device_index)
-    print("initial_device_index:",initial_device_index)
-    print("faulty_device:",faulty_device)
-
-    # M_total = param_allocation[faulty_device]
-    # M_total = sum(param_allocation)
-    M_total = param_allocation[4]
-
-    print("\ndevice_allocation:", param_allocation)
-    print("faulty_device:", faulty_device)
-    print("M_total:", M_total)
-
-    # ping_latency =np.array(   [ping_latency_total[i].tolist() for i in selected_device_index])
-
-    # # bandwidths =np.array( [bandwidths_total[i].tolist()  for i in selected_device_index])
-    # tatal_memory = np.array( [tatal_memory_total[i]   for i in selected_device_index])
-    # available_memory =  [available_memory_total[i]   for i in selected_device_index]
-    # flops_spped =  [flops_spped_total[i]  for i in selected_device_index]
-    device_lst = ["device" + str(i) for i in selected_device_index]
-    print("device_lst:", device_lst)
-
-    # 定义总模型大小和设备数量
-    # M_total = 1 # 设备3上的完整模型大小
-    n = len(selected_device_index)  # n个设备
-
-    recovery_time_single_device(selected_device_index)
-
-    # 运行优化并记录时间
-
-    # 多手机最优恢复（Ours)
-    startime = time.time()
-    best_Mi, best_time, stages = simulated_annealing(M_total, n)
-
-    min_recovery_time, min_index, last_load_time = last_load(best_Mi, stages)
-    last_load_time_tuple = (min_index, last_load_time)
-    print("last_load_time:",last_load_time)
-    endtime = time.time()
-    print("solve time:",endtime-startime)
-    # print(f"最佳子模型分配: {best_Mi}")
-    # print(f"最小无感恢复时间: {best_time:.2f} 秒")
-    # print(f"最完全恢复时间: {min_recovery_time:.2f} 秒")
-    results_out.append([best_Mi, best_time, min_recovery_time, min_index])
-    results_plot.append([stages, last_load_time_tuple, recovery_time_single_device_lst])
-    # # 打印每个设备的时间段信息
-    # print_stage_info(stages)
-
-    # 多手机随机恢复
-    # 均分
-
-    for i in range(30):
-        best_Mi, best_time, stages = simulated_annealing_random(M_total, n)
-        min_recovery_time, min_index, last_load_time = last_load(best_Mi, stages)
-        last_load_time_tuple = (min_index, last_load_time)
-        # 记录结果
-
-        results_plot.append([stages, last_load_time_tuple, recovery_time_single_device_lst])
-        results.append([best_Mi, best_time, min_recovery_time])
-
-    # 画出流水线图
-    plot_pipeline(results_plot)
-
-    # 转换为 DataFrame
-    df_results = pd.DataFrame(results, columns=["子模型分配", "无感恢复时间 (秒)", "完全恢复时间 (秒)"])
-    # 计算均值并添加到表格
-    mean_times = df_results[["无感恢复时间 (秒)", "完全恢复时间 (秒)"]].mean()
-    mean_times["子模型分配"] = "均值"
-    df_results = pd.concat([df_results, pd.DataFrame([mean_times], columns=df_results.columns)], ignore_index=True)
-    # tools.display_dataframe_to_user(name="模拟退火结果", dataframe=df_results)
-    # print(df_results)
-    # print(f"最佳子模型分配: {best_Mi}")
-    # print(f"无感恢复时间: {df_results['无感恢复时间 (秒)'].iloc[-1]:.2f} 秒")
-    # print(f"完全恢复时间: {df_results['完全恢复时间 (秒)'].iloc[-1]:.2f} 秒")
-    recovery_time_single_device([0])
-    break
-
-    results_out.append(
-        [[], df_results['无感恢复时间 (秒)'].iloc[-1], df_results['完全恢复时间 (秒)'].iloc[-1], min_index])
-
-    df_results_out = pd.DataFrame(results_out,
-                                  columns=["子模型分配", "无感恢复时间 (秒)", "完全恢复时间 (秒)", "二次加载选择设备"])
+    def add_phone(self, phone):
+        self.phones.append(phone)
 
 
+# 任务类
+class Task:
+    def __init__(self, user, token_count, model_total_parameters):
+        self.user = user  # 主用户
+        self.token_count = token_count  # 推理的token数量
+        self.model_total_parameters = model_total_parameters  # 模型的总参数量
+        self.phones = []  # 协同用户提供的手机
+        self.points_spent = 0  # 主用户消耗的积分
 
-    # Output to an Excel file
-    os.makedirs( "results",exist_ok=True)
-    excel_file_path = 'results/df_results_out_transposed.csv'
-    df_results_out.T.to_csv(excel_file_path, header=False)
-    print(df_results_out)
+    def add_phone(self, phone):
+        self.phones.append(phone)
+
+    def distribute_task(self):
+
+
+        for phone in self.phones:
+
+            phone.points_earned = phone.calculate_points()
+
+    def calculate_points_spent(self):
+        # 主用户消耗积分 = 模型参数量 / 总参数量 * token数量 * (1 + 抽成)
+        self.points_spent = model_total_parameters * self.token_count * (1 + platform_cut)
+
+
+# 模拟过程
+def run_simulation():
+    # 主用户初始积分
+
+
+    # 协同用户及手机
+    collaborative_users = [User(f"User{i}", initial_points=1000) for i in range(1, 6)]
+    phones = [Phone(i,flops_speed_total[i] , param_allocation[i]) for i in range(5)]
+
+    # 将手机添加到用户
+    for i, phone in enumerate(phones):
+
+
+        collaborative_users[i].add_phone(phone)  # 其他用户提供手机
+    main_user = collaborative_users[1]
+    # 创建一个推理任务
+    task = Task(main_user, token_count=token_count, model_total_parameters=model_total_parameters)
+
+    # 将所有用户的手机加入到任务中
+    for user in collaborative_users:
+        # 检查用户是否有手机
+        if len(user.phones) > 0:
+            task.add_phone(user.phones[0])
+        else:
+            print(f"User {user.id} has no phone available.")
+
+
+    # 分配任务并计算积分
+    task.distribute_task()
+    task.calculate_points_spent()
+
+    # 输出结果
+    print(f"主用户消耗积分：{task.points_spent/10000:.2f}")
+    for phone in task.phones:
+        print(f"手机 {phone.id} 分配的模型参数量：{phone.model_allocation   :.2f} B, 获取的积分：{phone.points_earned/10000:.2f}")
+    print(f"平台抽成：{task.points_spent * platform_cut/10000:.2f}")
+
+
+# 运行模拟
+run_simulation()

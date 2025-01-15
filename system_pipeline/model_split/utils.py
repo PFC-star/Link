@@ -52,8 +52,10 @@ def create_model_alloc(module_arrangmemt: np.ndarray):
     1. moduel_split_index: [[0, 8], [8, 9], [9, 44], [44, 45], [45, 50]]
     2. device_module_allocation_map: {0: {'fixed': [0], 'dynamic': [1]}, 1: {'fixed': [2], 'dynamic': [3]}, 2: {'fixed': [4], 'dynamic': [3]}}
     """
-
-    module_arrangmemt:list = module_arrangmemt.tolist()
+    if isinstance(module_arrangmemt,list):
+        pass
+    else:
+        module_arrangmemt:list = module_arrangmemt.tolist()
     print(module_arrangmemt)
 
     # create map to map module arrang list to the device id
@@ -140,8 +142,10 @@ def model_sharding(model,
                    residual_connection=True,
                    debug_mod=False,
                    model_allocation=[],
-                   split_option="ratio"):
+                   split_option="fixed"):
+    # kongzhi split
     split_size = split_size
+    print("split_option : ",split_option)
 
     # run split module
     split = ModelSplit(model, debug_mod, model_allocation=model_allocation, split_option=split_option)

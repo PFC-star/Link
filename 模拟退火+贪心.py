@@ -160,8 +160,81 @@ def simulated_annealing_random(M_total, n):
 
 
     return best_Mi, best_time, stages
+def apply_greedy_adjustment(allocation, stages):
+    """
+    贪心调整策略：优化模型分配。
+    目标是让后一个设备的加载阶段尽量利用前一个设备的推理和通信时间。
+    """
+    adjusted_allocation = allocation.copy()
+
+    for i in range(1, len(allocation)):
+        # 计算前一个设备的通信结束时间
+        prev_comm_end = stages[i - 1]["comm_end"]
+
+        # 当前设备的加载时间
+        current_load_time = load_time(adjusted_allocation[i], selected_device_index[i])
+
+        # 如果加载时间能够覆盖前一个设备的通信和推理时间，则微调分配
+        if current_load_time >= prev_comm_end:
+            adjusted_allocation[i] *= 1.1  # 当前设备增加分配
+            adjusted_allocation[i - 1] *= 0.9  # 前一个设备减少分配
+
+    # 确保总分配等于模型总大小
+    adjusted_allocation = adjusted_allocation / np.sum(adjusted_allocation) * M_total
+    return adjusted_allocation
+def simulated_annealing_with_greedy(M_total, n, iterations=10000, initial_temp=100, cooling_rate=0.95):
+    """
+    模拟退火算法，结合贪心策略调整分配。
+    """
 
 
+    # 初始化随机分配
+    # while True:
+    #     Mi = np.sort(np.random.dirichlet(np.ones(n), size=1)[0] * M_total)
+    #     current_temp = initial_temp
+    #     best_Mi = Mi
+    #
+    #     # 计算当前方案的目标函数
+    #     best_time, stages = calc_total_time(best_Mi)
+    #     if memory_constraint(best_Mi):
+    #         break
+
+    # 初始化分配，使用负载均衡策略生成初始解
+    best_Mi = load_balanced_initialization(
+        M_total,
+        n,
+        np.array(flops_spped_total)[selected_device_index],  # 修复错误，确保传入的是整数索引
+        np.array(available_memory_total)[selected_device_index],  # 修复错误
+        memory
+    )
+    current_temp = initial_temp
+
+    # 计算当前方案的目标函数
+    best_time, stages = calc_total_time(best_Mi)
+
+    # 模拟退火过程
+    for iteration in range(iterations):
+        # 随机生成新解
+        new_Mi = np.sort(np.random.dirichlet(np.ones(n), size=1)[0] * M_total)
+
+        # 应用贪心调整策略
+        new_Mi = apply_greedy_adjustment(new_Mi, stages)
+
+        # 检查新解是否满足内存约束
+        if memory_constraint(new_Mi):
+            # 计算新解的目标函数值
+            new_time, new_stages = calc_total_time(new_Mi)
+
+            # 使用 Metropolis 准则决定是否接受新解
+            if new_time < best_time or random.uniform(0, 1) < np.exp((best_time - new_time) / current_temp):
+                best_Mi = new_Mi
+                best_time = new_time
+                stages = new_stages
+
+        # 退火降温
+        current_temp *= cooling_rate
+
+    return best_Mi, best_time, stages
 # Calculating the total time for all devices
 def calc_total_time(Mi):
     total_times = []
@@ -208,8 +281,81 @@ def calc_total_time(Mi):
 
     # Return the maximum total time, representing the total recovery time
     return max(total_times), stages
+def load_balanced_initialization(M_total, n, flops_speeds, available_memories, memory_per_unit):
+    """
+    基于负载均衡分配的快速初始解
+    """
+    sorted_indices = np.argsort(-flops_speeds)  # 按 FLOPs 性能降序排列设备
+    allocation = np.zeros(n)
 
+    for idx in sorted_indices:
+        # 当前设备能分配的最大模型大小
+        max_memory = available_memories[idx] / memory_per_unit
+        allocation[idx] = min(max_memory, M_total)  # 分配尽可能大的模型
+        M_total -= allocation[idx]  # 剩余模型大小
+        if M_total <= 0:
+            break  # 如果模型分配完成，退出
 
+    return np.sort(allocation)
+
+def heuristic_initialization(M_total, n, flops_speeds, available_memories, memory_per_unit):
+    """
+    基于 FLOPs 和内存限制的比例快速生成初始解
+    """
+    # 按 FLOPs 比例分配初步分配值
+    flops_ratios = flops_speeds / np.sum(flops_speeds)
+    initial_allocation = flops_ratios * M_total
+
+    # 检查内存约束
+    for i in range(n):
+        max_memory = available_memories[i] / memory_per_unit
+        if initial_allocation[i] > max_memory:  # 如果超出内存限制
+            initial_allocation[i] = max_memory  # 限制分配
+            # 重新调整剩余模型大小
+            remaining = M_total - np.sum(initial_allocation)
+            if remaining > 0:
+                remaining_ratios = flops_speeds / np.sum(flops_speeds)
+                initial_allocation += remaining_ratios * remaining
+
+    return np.sort(initial_allocation)
+def randomized_heuristic_initialization(M_total, n, flops_speeds, available_memories, memory_per_unit, perturbation=0.1):
+    """
+    基于启发式规则的随机扰动初始解
+    """
+    # 获取启发式初始解
+    initial_allocation = heuristic_initialization(M_total, n, flops_speeds, available_memories, memory_per_unit)
+
+    # 加入随机扰动
+    noise = np.random.uniform(-perturbation, perturbation, size=n)
+    initial_allocation += initial_allocation * noise
+
+    # 确保分配合法性
+    initial_allocation = np.maximum(initial_allocation, 0)  # 确保非负
+    initial_allocation = initial_allocation / np.sum(initial_allocation) * M_total  # 归一化到总模型大小
+
+    # 检查内存约束
+    for i in range(n):
+        max_memory = available_memories[i] / memory_per_unit
+        if initial_allocation[i] > max_memory:
+            initial_allocation[i] = max_memory
+
+    return np.sort(initial_allocation)
+def greedy_initialization(M_total, n, flops_speeds, available_memories, memory_per_unit):
+    """
+    局部贪心法生成初始解
+    """
+    allocation = np.zeros(n)
+
+    for i in range(n):
+        # 每次分配剩余模型大小中按 FLOPs 比例调整
+        max_memory = available_memories[i] / memory_per_unit
+        device_allocation = min(max_memory, M_total / (n - i))
+        allocation[i] = device_allocation
+        M_total -= device_allocation
+        if M_total <= 0:
+            break
+
+    return np.sort(allocation)
 def print_stage_info(stages):
     # 创建数据表格
     table = []
@@ -295,23 +441,90 @@ def last_load(best_Mi,stages):
     return min_recovery_time,selected_device_index[min_index], last_load_time_lst[min_index]
 
 
+def genetic_initialization(M_total, n, population_size=50, generations=100):
+    """
+    使用遗传算法生成模拟退火的初始解。
+    """
+    # 初始化种群
+    population = [np.sort(np.random.dirichlet(np.ones(n), size=1)[0] * M_total) for _ in range(population_size)]
+
+    # 评估函数
+    def fitness(Mi):
+        time, _ = calc_total_time(Mi)
+        return -time  # 最小化时间
+
+    for _ in range(generations):
+        # 选择：按适应度排序，保留前50%
+        population = sorted(population, key=fitness)[:population_size // 2]
+
+        # 交叉：随机选择两个父母，生成子代
+        offspring = []
+        for _ in range(population_size // 2):
+            parents = random.sample(population, 2)
+            cross_point = random.randint(1, n - 1)
+            child = np.concatenate((parents[0][:cross_point], parents[1][cross_point:]))
+            offspring.append(np.sort(child / np.sum(child) * M_total))  # 保证总分配为M_total
+        population += offspring
+
+        # 变异：随机调整部分解
+        for i in range(len(population)):
+            if random.random() < 0.1:  # 10%的变异概率
+                mutation = np.random.dirichlet(np.ones(n), size=1)[0] * 0.1 * M_total
+                population[i] = np.sort((population[i] + mutation) / np.sum(population[i] + mutation) * M_total)
+
+    # 返回最优解
+    return population[0]
+
+
+def dynamic_simulated_annealing(M_total, n, initial_temp=100, min_temp=1, max_iterations=10000):
+    """
+    动态调整冷却速率的模拟退火算法。
+    """
+    # 初始化解
+    best_Mi = genetic_initialization(M_total, n)  # 使用遗传算法生成初始解
+    current_temp = initial_temp
+    cooling_rate = 0.95  # 初始冷却速率
+    best_time, stages = calc_total_time(best_Mi)
+
+    # 模拟退火过程
+    for iteration in range(max_iterations):
+        # 生成新解
+        new_Mi = np.sort(np.random.dirichlet(np.ones(n), size=1)[0] * M_total)
+
+        # 可选：在前10%迭代中加入贪心调整
+        if iteration < max_iterations * 0.1:
+            new_Mi = apply_greedy_adjustment(new_Mi, stages)
+
+        # 检查约束
+        if memory_constraint(new_Mi):
+            new_time, new_stages = calc_total_time(new_Mi)
+            if new_time < best_time or random.uniform(0, 1) < np.exp((best_time - new_time) / current_temp):
+                best_Mi = new_Mi
+                best_time = new_time
+                stages = new_stages
+
+        # 动态调整冷却速率
+        current_temp = max(min_temp, current_temp * cooling_rate)
+        cooling_rate = max(0.9, cooling_rate * 0.995)  # 冷却速率逐渐减小
+
+    return best_Mi, best_time, stages
 
 # 参数
 
 
-#
-# initial_module_arrangement=[ [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ],
-#                              [1 ,1 ,1 ,1, 1, 1 ,1 ,1, 1, 1 ,1 ,1 ,1 ,1 ,1 ,1, 1 ,1 ,1 ,1 ,1 ,0 ,0 ,0, 1],
-#                             [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,1, 1 ,1, 0 ],
-#                              [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ],
-#                              [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ]]
-
 
 initial_module_arrangement=[ [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ],
-                             [1 ,0 ,0 ,0, 0, 0 ,1 ,1, 1, 0 ,0 ,0 ,0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0 ,0 ,0],
-                             [0 ,1 ,1 ,1 ,1 ,1, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ],
-                             [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,1 ,1, 1 ,1 ,1 ,1 ,1, 1 ,1 ,1 ,1 ,1 ,1, 1 ,1, 0 ],
-                             [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 1 ]]
+                             [1 ,1 ,1 ,1, 1, 1 ,1 ,1, 1, 1 ,1 ,1 ,1 ,1 ,1 ,1, 1 ,1 ,1 ,1 ,1 ,0 ,0 ,0, 1],
+                            [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,1, 1 ,1, 0 ],
+                             [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ],
+                             [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ]]
+
+#
+# initial_module_arrangement=[ [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ],
+#                              [1 ,0 ,0 ,0, 0, 0 ,1 ,1, 1, 0 ,0 ,0 ,0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0 ,0 ,0],
+#                              [0 ,1 ,1 ,1 ,1 ,1, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ],
+#                              [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,1 ,1, 1 ,1 ,1 ,1 ,1, 1 ,1 ,1 ,1 ,1 ,1, 1 ,1, 0 ],
+#                              [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 1 ]]
 
 param_dict_1 = {"selected_device_index":[0,3],
               "selected_single_device_index":0,
@@ -356,8 +569,9 @@ FLOPs_allocation = [ sum(i)/len(i)* flop for i in initial_module_arrangement]
 
 results_out = []
 
-for param_dict in param_list:
-
+# for param_dict in param_list[3]:
+for i in range (1):
+    param_dict = param_list[3]
     results = []
     results_plot = []
     recovery_time_single_device_lst = []
@@ -372,7 +586,7 @@ for param_dict in param_list:
 
     # M_total = param_allocation[faulty_device]
     # M_total = sum(param_allocation)
-    M_total = param_allocation[4]
+    M_total = param_allocation[faulty_device]
 
     print("\ndevice_allocation:", param_allocation)
     print("faulty_device:", faulty_device)
@@ -397,8 +611,9 @@ for param_dict in param_list:
 
     # 多手机最优恢复（Ours)
     startime = time.time()
+    # best_Mi, best_time, stages = simulated_annealing_with_greedy(M_total, n)
     best_Mi, best_time, stages = simulated_annealing(M_total, n)
-
+    # best_Mi, best_time, stages = dynamic_simulated_annealing(M_total, n)
     min_recovery_time, min_index, last_load_time = last_load(best_Mi, stages)
     last_load_time_tuple = (min_index, last_load_time)
     print("last_load_time:",last_load_time)
@@ -439,7 +654,7 @@ for param_dict in param_list:
     # print(f"无感恢复时间: {df_results['无感恢复时间 (秒)'].iloc[-1]:.2f} 秒")
     # print(f"完全恢复时间: {df_results['完全恢复时间 (秒)'].iloc[-1]:.2f} 秒")
     recovery_time_single_device([0])
-    break
+    # break
 
     results_out.append(
         [[], df_results['无感恢复时间 (秒)'].iloc[-1], df_results['完全恢复时间 (秒)'].iloc[-1], min_index])

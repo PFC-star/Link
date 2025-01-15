@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/LinguaLinked.iml" filepath="$PROJECT_DIR$/.idea/LinguaLinked.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../python_projects/onnx_model_split/.idea/onnx_model_split.iml" filepath="$PROJECT_DIR$/../python_projects/onnx_model_split/.idea/onnx_model_split.iml" />
     </modules>
   </component>
 </project>

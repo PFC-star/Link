@@ -19,6 +19,16 @@ from threading import Thread
     C: Close
         root -> client; Close the connection
 """
+def int_to_bytes(num):
+    # 如果 num 是 0-9 之间的数字，返回对应字符的字节串
+    if 0 <= num <= 9:
+        return chr(num + ord('0')).encode('utf-8')  # 将整数转为字符 '0' - '9'
+    # 其他整数映射为对应的字符（比如映射大写字母等）
+    elif 32 <= num <= 126:
+        return chr(num).encode('utf-8')  # 对应可打印字符
+    else:
+        # 对于其他值，返回原始的字节串
+        return bytes([num])
 
 def communication_open_close(sender, config, status, conditions, lock, open=True):
     ## Status: Ready, Open, Prepare, Initialized, Start, Running, Finish
@@ -47,7 +57,8 @@ def communication_open_close(sender, config, status, conditions, lock, open=True
                                     config["core_pool_size"],
                                     config["num_sample"],
                                     config["max_length"],
-                                    json.dumps(config["dependency"]).encode()
+                                    json.dumps(config["dependency"]).encode(),
+                                    int_to_bytes(config['num_device']),
                                    ])
 
             status[client_id] = b'Open'

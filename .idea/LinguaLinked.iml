@@ -4,6 +4,7 @@
     <content url="file://$MODULE_DIR$" />
     <orderEntry type="jdk" jdkName="Remote Python 3.10.12 (sftp://root@10.214.149.209:6729/usr/bin/python3)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="onnx_model_split" />
   </component>
   <component name="PyDocumentationSettings">
     <option name="format" value="PLAIN" />

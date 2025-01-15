@@ -28,7 +28,7 @@ available_models = {
     # "bloom1b7": ["szzzzz/chatbot_bloom_1b7", "huggingface_tokenizer"],
     "bloom1b7": ["/workspace/LLM_models/chatbot_bloom_1b7", "huggingface_tokenizer"],
     "bloom3b": ["/workspace/LLM_models/bloom-3b", "huggingface_tokenizer"],
-    "bloom7b1": ["bigscience/bloom-7b1", "huggingface_tokenizer"],
+    "bloom7b1": ["/workspace/LLM_models//bloom-7b1", "huggingface_tokenizer"],
     "vicuna7b": ["lmsys/vicuna-7b-v1.3", "sentencepiece_tokenizer"],
     "vicuna13b": ["lmsys/vicuna-13b-v1.3", "sentencepiece_tokenizer"],
     "gpt-j6b": ["EleutherAI/gpt-j-6b", "huggingface_tokenizer"],
@@ -185,7 +185,11 @@ class ModelCard:
         self.input_for_flop = self.tokenizer("University of California Irvine "
                                         "is a public university located in", return_tensors="pt")[
             "input_ids"].cpu().numpy().copy()
-        print(self.module_flop_map)
+        print("module_flop_map:  ",self.module_flop_map)
+        sum_flop=0
+        for item in self.module_flop_map.items():
+            sum_flop+=item[1]
+        print("sum_flop:  ",sum_flop)
 
         if not os.path.isdir(onnx_module_path):
             os.makedirs(onnx_module_path)
@@ -348,7 +352,7 @@ class ModelCard:
                     input_onnx_types = [node.type.tensor_type.elem_type for node in module.graph.input]
                     input_tensors = current_inputs
                     test_tensor_bytearray = serialize_tensors(input_tensors, input_onnx_types)
-                    onnx.save(module, f"{self.onnx_module_to_split_path}/flop_test_module.onnx")
+                    # onnx.save(module, f"{self.onnx_module_to_split_path}/flop_test_module.onnx")
                     bytearray_saving_path = os.path.join(self.onnx_module_to_split_path, "flop_byte_array.bin")
                     with open(bytearray_saving_path, 'wb') as f:
                         f.write(test_tensor_bytearray)

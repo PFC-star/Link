@@ -1,72 +1,26 @@
-import time
-
 import numpy as np
 import random
+import pandas as pd
 import matplotlib.pyplot as plt
 from tabulate import tabulate
-# import ace_tools as tools
-import pandas as pd
-import os
-# 定义ping延迟和带宽数组
-# 单位 秒 s
 
+# 定义ping延迟和带宽数组（单位：秒、MB）
 ping_latency_total = [
-                        [0	,0.034866,0.017796	,0.076512,	0.030985],
-                        [0.03257,	0,	0.027257	,0.079517,	0.018823],
-                        [0.108798	,0.065485	,0,	0.064679	,0.043849],
-                        [0.206233	,0.028255	,0.034938	,0,	0.02909],
-                        [0.021318	,0.034842	,0.019245,	0.042098,	0]]
+    [0, 0.034866, 0.017796, 0.076512, 0.030985],
+    [0.03257, 0, 0.027257, 0.079517, 0.018823],
+    [0.108798, 0.065485, 0, 0.064679, 0.043849],
+    [0.206233, 0.028255, 0.034938, 0, 0.02909],
+    [0.021318, 0.034842, 0.019245, 0.042098, 0]
+]
 
-# MB ps
-
-
+# 带宽数组（单位：MB/s）
 bandwidths_total = [
-                        [float("inf")	,1.666069031,	1.81388855	,2.56729126	,4.906654358],
-                        [0.312805176	,float("inf")	,1.200675964	,0.575065613,	0.590324402],
-                        [0.994682312,	2.725601196	,float("inf")	,0.332832336,	0.495910645],
-                        [0.772476196,	1.02519989	,1.168251038,	float("inf")	,1.210212708],
-                        [2.743721008,	1.764297485	,1.543045044,	3.170013428,	float("inf")]]
-
-
-# 单位 MB
-tatal_memory_total = [5395.599999999999, 11161.5, 4134.2, 5332.599999999999, 5603.5]
-
-available_memory_total = [2146.2, 0.4*7867.299999999999, 1964.1999999999998,2522.7999999999997, 0.8*3695.9999999999995]
-
-
-
-flops_spped_total= np.array([17128238928,52008456659,22955103793,34432655689,18917814128])
-
-load_time_param = np.array([(3.5830231,0.99784825),
-                            (0.95286353,1.07230762),
-                            (1.44911418,1.6059872),
-                            (10.91643267,0.74477676),
-                             (1.14697389,1.59626346)])
-model_list= ["bloom560","bloom560-int8" ,"bloom1b7","bloom1b7-int8"]
-model_dict = {"bloom560":{"FLOPs":12300000000,"memory":3072,"param":0.560},
-              "bloom560-int8": {"FLOPs": 12300000000, "memory": 806,"param":0.560} ,
-              "bloom7b1": {"FLOPs": 155510450560, "memory": 806,"param":7.1}}
-model_name = "bloom7b1"
-
-flop = model_dict[model_name]["FLOPs"]
-memory = model_dict[model_name]["memory"]
-param = model_dict[model_name]["param"]
-
-
-# initial_module_arrangement=[
-#                              [1 ,1 ,1 ,1, 1, 1 ,1 ,1, 1, 1 ,1 ,1 ,1 ,1 ,1 ,1, 1 ,1 ,1 ,1 ,1 ,0 ,0 ,0, 1],
-#                             [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,1, 1 ,1, 0 ]]
-
-#
-# initial_module_arrangement=[
-#                              [1 ,1 ,1 ,1, 1, 1 ,1 ,1, 1, 1 ,1 ,1 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0 ,0 ,0, 0],
-#                             [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,1 ,1 ,1,1, 1 ,1 ,1 ,1 ,1 ,1, 1 ,1, 1 ]]
-
-
-
-
-
-
+    [float("inf"), 1.666069031, 1.81388855, 2.56729126, 4.906654358],
+    [0.312805176, float("inf"), 1.200675964, 0.575065613, 0.590324402],
+    [0.994682312, 2.725601196, float("inf"), 0.332832336, 0.280007935],
+    [0.734411507, 0.634801417, 0.433241694, float("inf"), 0.703819996],
+    [1.302121697, 1.801237821, 0.502415113, 0.52142342, float("inf")]
+]
 
 
 # 定义通信数据大小
@@ -78,23 +32,12 @@ def load_time(M, device):
     a = param_[0]
     b = param_[1]
     return max(a* M ** b,0.5)
-# increment = 0.1
-# numbers = [i * increment for i in range(0, 30)]
-# for i in numbers:
-#     print(load_time(i,4))
-# def load_time(M):
-#     return 5.57 * M ** 0.44
-# def inference_time(M):
-#     return 0.15 * M ** 0.73
 
 def inference_time(m,device):
     flop = m/M_total* FLOPs_allocation[faulty_device]
     inference_time_ = flop / flops_spped_total[device]
     # print("inference_time_:",inference_time_)
     return inference_time_
-# 加入Memory_spped
-
-
 
 # 计算设备之间的通信时间
 def communication_time(i, j, data_size_kb=20):
@@ -294,19 +237,6 @@ def last_load(best_Mi,stages):
     min_recovery_time = max(recovery_time_lst)
     return min_recovery_time,selected_device_index[min_index], last_load_time_lst[min_index]
 
-
-
-# 参数
-
-
-#
-# initial_module_arrangement=[ [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ],
-#                              [1 ,1 ,1 ,1, 1, 1 ,1 ,1, 1, 1 ,1 ,1 ,1 ,1 ,1 ,1, 1 ,1 ,1 ,1 ,1 ,0 ,0 ,0, 1],
-#                             [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,1, 1 ,1, 0 ],
-#                              [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ],
-#                              [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ]]
-
-
 initial_module_arrangement=[ [0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ],
                              [1 ,0 ,0 ,0, 0, 0 ,1 ,1, 1, 0 ,0 ,0 ,0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0 ,0 ,0],
                              [0 ,1 ,1 ,1 ,1 ,1, 0, 0, 0 ,0 ,0, 0 ,0 ,0 ,0 ,0, 0 ,0 ,0 ,0 ,0 ,0, 0 ,0, 0 ],
@@ -357,7 +287,6 @@ FLOPs_allocation = [ sum(i)/len(i)* flop for i in initial_module_arrangement]
 results_out = []
 
 for param_dict in param_list:
-
     results = []
     results_plot = []
     recovery_time_single_device_lst = []
@@ -396,14 +325,11 @@ for param_dict in param_list:
     # 运行优化并记录时间
 
     # 多手机最优恢复（Ours)
-    startime = time.time()
     best_Mi, best_time, stages = simulated_annealing(M_total, n)
 
     min_recovery_time, min_index, last_load_time = last_load(best_Mi, stages)
     last_load_time_tuple = (min_index, last_load_time)
     print("last_load_time:",last_load_time)
-    endtime = time.time()
-    print("solve time:",endtime-startime)
     # print(f"最佳子模型分配: {best_Mi}")
     # print(f"最小无感恢复时间: {best_time:.2f} 秒")
     # print(f"最完全恢复时间: {min_recovery_time:.2f} 秒")
@@ -446,11 +372,107 @@ for param_dict in param_list:
 
     df_results_out = pd.DataFrame(results_out,
                                   columns=["子模型分配", "无感恢复时间 (秒)", "完全恢复时间 (秒)", "二次加载选择设备"])
+print(df_results_out)
 
 
+# Output to an Excel file
+os.makedirs( "results",exist_ok=True)
+excel_file_path = 'results/df_results_out_transposed.csv'
+df_results_out.T.to_csv(excel_file_path, header=False)
 
-    # Output to an Excel file
-    os.makedirs( "results",exist_ok=True)
-    excel_file_path = 'results/df_results_out_transposed.csv'
-    df_results_out.T.to_csv(excel_file_path, header=False)
-    print(df_results_out)
+# 模拟每个手机的状态，包括性能、积分等
+class Phone:
+    def __init__(self, id, performance, available_time):
+        self.id = id
+        self.performance = performance  # 性能（计算能力，越大越快）
+        self.available_time = available_time  # 手机空闲时间，单位为秒
+        self.is_free = True
+        self.used_time = 0  # 用于记录手机使用的时间
+
+    def use(self, task):
+        if self.is_free:
+            self.is_free = False
+            processing_time = task.complexity / self.performance  # 根据任务复杂度与手机性能来计算处理时间
+            self.used_time = processing_time
+            return processing_time
+        return None
+
+    def free_up(self):
+        self.is_free = True
+        self.used_time = 0
+
+# 用户类，表示每个用户的手机、积分等
+class User:
+    def __init__(self, id, phone, initial_points):
+        self.id = id
+        self.phone = phone
+        self.points = initial_points  # 用户初始积分
+
+    def spend_points(self, points):
+        """消耗积分"""
+        self.points -= points
+
+    def earn_points(self, points):
+        """获得积分"""
+        self.points += points
+
+# 任务类，表示推理任务，包含任务复杂度和所需的手机处理的时间
+class Task:
+    def __init__(self, token_count, model_complexity):
+        self.token_count = token_count  # token数量
+        self.model_complexity = model_complexity  # 模型复杂度
+        self.complexity = self.token_count * self.model_complexity  # 总任务复杂度 = token数 * 模型复杂度
+
+# 模拟器类，管理任务调度、积分计算等
+class Simulator:
+    def __init__(self, users):
+        self.users = users  # 用户列表
+
+    def execute_task(self, main_user, task):
+        """
+        主用户发起推理任务，协同用户参与推理。
+        主用户消耗积分，协同用户获得积分。
+        """
+        # 计算任务的总时间和每个协同用户的任务分配情况
+        total_processing_time = 0
+        total_points_consumed = 0
+        total_points_earned = 0
+
+        # 任务拆分给多个协同用户处理
+        for user in self.users:
+            if user != main_user:
+                phone = user.phone
+                processing_time = phone.use(task)
+                if processing_time is not None:
+                    total_processing_time += processing_time
+                    # 协同用户根据他们的处理时间和任务复杂度来赚取积分
+                    points_earned = task.complexity * (processing_time / total_processing_time)
+                    user.earn_points(points_earned)
+                    total_points_earned += points_earned
+
+        # 主用户消耗积分
+        points_spent = task.complexity * (total_processing_time / task.complexity)*3
+        main_user.spend_points(points_spent)
+        total_points_consumed += points_spent
+
+        # 输出任务执行情况
+        print(f"Task executed by main user {main_user.id} with {len(self.users) - 1} collaborative users.")
+        print(f"Total points consumed by main user: {total_points_consumed:.2f}")
+        print(f"Total points earned by collaborative users: {total_points_earned:.2f}")
+        print(f"Total processing time: {total_processing_time:.2f} seconds")
+        print("\nUser points after task execution:")
+        for user in self.users:
+            print(f"User {user.id}: {user.points:.2f} points")
+
+# 主程序
+if __name__ == "__main__":
+    # 创建用户和他们的手机
+    users = [User(i, Phone(i, random.uniform(1, 5), random.randint(5, 10)), 100) for i in range(5)]
+    main_user = users[0]  # 假设第一个用户是主用户
+
+    # 创建任务
+    task = Task(token_count=1000, model_complexity=0.5)
+
+    # 创建并运行模拟器
+    simulator = Simulator(users)
+    simulator.execute_task(main_user, task)

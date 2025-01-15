@@ -134,7 +134,7 @@ class Monitor:
         print("monitor start listening")
         print(f"device set size: {self.root_device_len}")
         while continue_listening:
-            if self.socket.poll(20000):
+            if self.socket.poll(30000):
                 print("monitor start listening")
                 identifier, action, msg_content = self.socket.recv_multipart()
                 # print(f"monitor identifier: {identifier.hex()}")
@@ -316,7 +316,7 @@ class Monitor:
         for request_address in self.ip_graph_requested:
             # print("Sending response to address:", request_address)
             # flop_num = 184610000
-            data = struct.pack("<L", self.num_flop)
+            data = struct.pack("<Q", self.num_flop)
             self.socket.send_multipart([request_address, graph_to_send.encode()])
             self.socket.send_multipart([request_address, data])
             # self.socket.send_multipart([request_address, str(trans.encode())])

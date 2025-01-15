@@ -11,7 +11,7 @@ from torch.fx import GraphModule
 import transformers
 
 class ModelSplit:
-    def __init__(self, m: nn.Module, debug_mod: bool = False, model_allocation=[], split_option="ratio"):
+    def __init__(self, m: nn.Module, debug_mod: bool = False, model_allocation=[], split_option="fixed"):
         self.mod = m
         self.mod_mapping = {}
         self.subgraph_dependency_bool = True
@@ -504,7 +504,7 @@ class ModelSplit:
             else:
                 # model_split = [0.67627924 ,0.72070909 ,0.78456432 ,0.8184473]
 
-                model_split = [ 0.38115006,0.61884994]
+                model_split = [0.9,0.1]
 
 
 
